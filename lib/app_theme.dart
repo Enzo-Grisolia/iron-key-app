@@ -53,3 +53,4 @@ class AppTheme {
     scaffoldBackgroundColor: backgroundDark,
  );
 }
+
