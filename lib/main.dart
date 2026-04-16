@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ironkey/app_theme.dart';
+import 'package:ironkey/password_complexity.dart';
 import 'package:ironkey/password_generator.dart';
 import 'package:ironkey/pin_password_generator.dart';
 import 'package:ironkey/standard_password_generator.dart';
@@ -20,8 +21,8 @@ class IronKeyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      title: 'IronKey',
+      themeMode: ThemeMode.light,
+      title: "IronKey",
       home: IronKeyScreen(),
     );
   }
@@ -37,8 +38,16 @@ class IronKeyScreen extends StatefulWidget {
 class _IronKeyScreenState extends State<IronKeyScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
-  PasswordType passwordSelectorType = PasswordType.pin;
+  PasswordType passwordSelectedType = PasswordType.pin;
   bool isEditable = false;
+
+  bool includeUppercase = true;
+  bool includeLowercase = true;
+  bool includeSymbols = false;
+  bool includeNumbers = false;
+  int passwordLength = 12;
+
+  PasswordComplexity selectedComplexity = PasswordComplexity.medium;
 
   @override
   void initState() {
@@ -64,17 +73,22 @@ class _IronKeyScreenState extends State<IronKeyScreen> {
   void generatePassword() {
     late final PasswordGenerator generator;
 
-    switch (passwordSelectorType){
+    switch (passwordSelectedType) {
       case PasswordType.pin:
         generator = PinPasswordGenerator();
         break;
       case PasswordType.standard:
-        generator = StandardPasswordGenerator();
+        generator = StandardPasswordGenerator(
+          includeLowercase: includeLowercase,
+          includeUppercase: includeUppercase,
+          includeNumbers: includeNumbers,
+          includeSymbols: includeSymbols,
+        );
         break;
     }
 
     setState(() {
-      _passwordController.text = generator.generate(8);
+      _passwordController.text = generator.generate(passwordLength);
     });
   }
 
@@ -90,74 +104,81 @@ class _IronKeyScreenState extends State<IronKeyScreen> {
           child: Column(
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    ClipOval(
-                      child: SizedBox(
-                        width: 150,
-                        height: 150,
-                        child: Image.asset(
-                          'assets/images/iron-man.jpg',
-                          fit: BoxFit.cover,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      ClipOval(
+                        child: SizedBox(
+                          width: 150,
+                          height: 150,
+                          child: Image.asset(
+                            "assets/images/iron-man.jpg",
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Sua senha segura',
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 24,
+                      SizedBox(height: 16),
+                      Text(
+                        "Sua senha segura",
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 24,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      enabled: isEditable,
-                      controller: _passwordController,
-                      maxLength: 12,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
-                        prefix: Icon(Icons.lock),
-                        suffix: _passwordController.text.isNotEmpty
-                            ? IconButton(
-                                onPressed: () {
-                                  copyPassword(_passwordController.text);
-                                },
-                                icon: Icon(Icons.copy),
-                              )
-                            : null,
+                      SizedBox(height: 16),
+                      TextField(
+                        enabled: isEditable,
+                        controller: _passwordController,
+                        maxLength: 12,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          border: OutlineInputBorder(),
+                          prefix: Icon(Icons.lock),
+                          suffix: _passwordController.text.isNotEmpty
+                              ? IconButton(
+                                  onPressed: () {
+                                    copyPassword(_passwordController.text);
+                                  },
+                                  icon: Icon(Icons.copy),
+                                )
+                              : null,
+                        ),
                       ),
-                    ),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("Tipo de senha")
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text("Tipo de senha"),
                       ),
 
                       Row(
                         children: [
                           Expanded(
                             child: RadioListTile(
-                              value: PasswordType.pin, 
-                              groupValue: passwordSelectorType,
-                              title: Text("Pin"), 
+                              value: PasswordType.pin,
+                              groupValue: passwordSelectedType,
+                              title: Text("Pin"),
                               onChanged: (value) {
                                 setState(() {
-                                  passwordSelectorType = value!;
+                                  passwordSelectedType = value!;
                                 });
-                              }
-                            )
+                              },
+                            ),
                           ),
-                          Expanded(child: RadioListTile(value: PasswordType.standard
-                          , groupValue: passwordSelectorType, title: Text("Senha padrão"), onChanged: (value){
-                            setState(() {
-                              passwordSelectorType = value!;
-                            });
-                          })),
+                          Expanded(
+                            child: RadioListTile(
+                              value: PasswordType.standard,
+                              groupValue: passwordSelectedType,
+                              title: Text("Senha padrão"),
+                              onChanged: (value) {
+                                setState(() {
+                                  passwordSelectedType = value!;
+                                });
+                              },
+                            ),
+                          ),
                         ],
                       ),
 
@@ -166,20 +187,125 @@ class _IronKeyScreenState extends State<IronKeyScreen> {
                       Row(
                         children: [
                           Icon(isEditable ? Icons.lock_open : Icons.lock),
-                          SizedBox(width: 8,),
-                          Expanded(child: Text("Permitir editar a senha")),
-                          Switch(value: isEditable, onChanged: (value) {
-                            setState(() {
-                              isEditable = value;
-                            });
-                          })
+                          SizedBox(width: 8),
+                          Expanded(child: Text("Permitir editar a senha?")),
+                          Switch(
+                            value: isEditable,
+                            onChanged: (value) {
+                              setState(() {
+                                isEditable = value;
+                              });
+                            },
+                          ),
                         ],
                       ),
                       Divider(color: colorScheme.outline),
                       const SizedBox(height: 20),
 
-                      if (isEditable) Text("Senha customizada"),
-                  ],
+                      if (isEditable) ...[
+                        const SizedBox(height: 20),
+                        DropdownButtonFormField<PasswordComplexity>(
+                          value: selectedComplexity,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Complexidade da senha',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: PasswordComplexity.values.map((complexity) {
+                            return DropdownMenuItem(
+                              value: complexity,
+                              child: Text(complexity.title),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedComplexity = value!;
+                              passwordLength = selectedComplexity.length;
+                            });
+                          },
+                        ),
+
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text("Tamanho da Senha $passwordLength"),
+                        ),
+
+                        Slider(
+                          value: passwordLength.toDouble(),
+                          min: 4,
+                          max: 12,
+                          onChanged: (value) {
+                            setState(() {
+                              passwordLength = value.toInt();
+                            });
+                            generatePassword();
+                          },
+                        ),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                value: includeUppercase,
+                                onChanged: (value) {
+                                  setState(() {
+                                    includeUppercase = value ?? false;
+                                  });
+                                },
+                                title: Text("Maiúsculas"),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                            ),
+                            Expanded(
+                              child: CheckboxListTile(
+                                value: includeNumbers,
+                                onChanged: (value) {
+                                  setState(() {
+                                    includeNumbers = value ?? false;
+                                  });
+                                },
+                                title: Text("Números"),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                value: includeLowercase,
+                                onChanged: (value) {
+                                  setState(() {
+                                    includeLowercase = value ?? false;
+                                  });
+                                },
+                                title: Text("Minúsculas"),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                            ),
+                            Expanded(
+                              child: CheckboxListTile(
+                                value: includeSymbols,
+                                onChanged: (value) {
+                                  setState(() {
+                                    includeSymbols = value ?? false;
+                                  });
+                                },
+                                title: Text("Simbolos"),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -187,7 +313,7 @@ class _IronKeyScreenState extends State<IronKeyScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: generatePassword,
-                  child: Text('Gerar senha'),
+                  child: Text("Gerar senha"),
                 ),
               ),
             ],
